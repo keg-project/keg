@@ -23,7 +23,7 @@ jobs:
         cargo test
 
         sudo apt-get -y update
-        sudo apt-get -y install bubblewrap fuse-overlayfs nftables podman slirp4netns
+        sudo apt-get -y install bubblewrap fuse-overlayfs libseccomp-dev nftables podman slirp4netns
         bwrap --version
         fuse-overlayfs --version
         nft --version
