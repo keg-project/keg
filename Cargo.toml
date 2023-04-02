@@ -1,0 +1,16 @@
+[package]
+name = "keg"
+version = "0.1.0"
+edition = "2021"
+default-run = "keg"
+
+[dependencies]
+bincode = "1.3.0"
+libc = "0.2.0"
+serde = { version = "1.0.0", features = ["derive"] }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
