@@ -185,6 +185,9 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
 
     args.container.command.push("/usr/bin/podman".into());
     args.container.command.push("run".into());
+    // cap_sys_chroot: https://github.com/containers/podman/issues/17504
+    args.container.command.push("--cap-add".into());
+    args.container.command.push("sys_chroot".into());
     args.container.command.push("-i".into());
     args.container.command.push("-t".into());
     args.container
