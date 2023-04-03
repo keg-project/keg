@@ -15,6 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        sudo apt-get -y update
+        sudo apt-get -y install bubblewrap fuse-overlayfs libseccomp-dev nftables podman slirp4netns
     - name: Build
       run: |
         cargo build
@@ -22,8 +26,6 @@ jobs:
       run: |
         cargo test
 
-        sudo apt-get -y update
-        sudo apt-get -y install bubblewrap fuse-overlayfs libseccomp-dev nftables podman slirp4netns
         bwrap --version
         fuse-overlayfs --version
         nft --version
