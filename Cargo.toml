@@ -2,6 +2,8 @@
 name = "keg"
 version = "0.1.0"
 edition = "2021"
+description = "Keg"
+license = "MIT"
 default-run = "keg"
 
 [dependencies]
