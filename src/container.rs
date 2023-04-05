@@ -94,12 +94,12 @@ pub fn run_container(
     // Stages:
     // Isolation:
     // stage 0: container: cap_setfcap, cap_sys_admin, share net, bind /dev/net/tun.
-    // stage 1: container: cap_setfcap, cap_sys_admin, share pid, bind /dev/net/tun. run slirp.
-    // stage 2: container: cap_setfcap, cap_sys_admin, share net, bind /dev/net/tun.
-    // stage 3: container: cap_setfcap, cap_sys_admin, cap_net_admin, share pid, bind /dev/net/tun. run slirp.
+    // stage 1: unshare time. container: cap_setfcap, cap_sys_admin, share pid, bind /dev/net/tun. run slirp.
+    // stage 2: unshare time. container: cap_setfcap, cap_sys_admin, share net, bind /dev/net/tun.
+    // stage 3: unshare time. container: cap_setfcap, cap_sys_admin, cap_net_admin, share pid, bind /dev/net/tun. run slirp.
     // stage 4: unshare time. bwrap(nft, cap_net_admin). container: cap_setfcap, cap_sys_admin, share net, bind /dev/net/tun.
-    // stage 5: container: cap_setfcap, cap_sys_admin, share pid. run slirp.
-    // stage 6: container: cap_setfcap, cap_sys_admin, share net.
+    // stage 5: unshare time. container: cap_setfcap, cap_sys_admin, share pid. run slirp.
+    // stage 6: unshare time. container: cap_setfcap, cap_sys_admin, share net.
     // Mounting.
     // Exec: Set env. Exec.
 

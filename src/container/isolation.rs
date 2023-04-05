@@ -174,10 +174,9 @@ pub fn run_container(
         Cow::Borrowed(env)
     };
 
-    if stage == 4 {
+    if stage > 0 {
         true_or!(unsafe { unshare(CLONE_NEWTIME) } == 0, return None);
     }
-
     if stage == 4 {
         // Load nft rules and **make sure** the load succeeds.
         ok_or!(
