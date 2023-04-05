@@ -28,6 +28,7 @@ jobs:
       run: |
         cargo test
 
+        uname -a
         bwrap --version
         fuse-overlayfs --version
         nft --version
