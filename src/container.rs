@@ -44,6 +44,7 @@ pub enum Options {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Container {
     pub share_net: bool,
+    pub share_time: bool,
     pub keep_env: bool,
     pub net_nft_rules: Vec<u8>,
     pub unshare_user: Option<(uid_t, gid_t)>,
@@ -56,6 +57,7 @@ impl Default for Container {
     fn default() -> Self {
         Self {
             share_net: false,
+            share_time: false,
             keep_env: false,
             net_nft_rules: Vec::new(),
             unshare_user: None,

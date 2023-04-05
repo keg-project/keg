@@ -77,6 +77,8 @@ fn parse_args_or_run_inner() -> Option<Args> {
             no_new_scope = true;
         } else if &arg == "--share-net" {
             container.share_net = true;
+        } else if &arg == "--share-time" {
+            container.share_time = true;
         } else if &arg == "--keep-env" {
             container.keep_env = true;
         } else if &arg == "--net-nft-rules" {

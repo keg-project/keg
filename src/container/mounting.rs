@@ -1,10 +1,10 @@
-use super::utils::ro_bind_subentries_keep_symlinks;
+use super::utils::{ro_bind_subentries_keep_symlinks, CLONE_NEWTIME};
 use super::{Bind, Container, ContainerRunner, ContainerRunnerResponse, Mount, Options, Stage};
 use crate::bwrap::bwrap;
 use crate::cgroup::{cgroup_init, cgroup_postexec, cgroup_preexec};
 use crate::socket_pair::{set_cloexec, socket_pair};
 use crate::{msg_ret, ok_or, some_or, true_or};
-use libc::close;
+use libc::{close, unshare};
 use std::ffi::OsString;
 use std::io::Write;
 use std::os::unix::process::ExitStatusExt;
@@ -16,6 +16,10 @@ pub fn run_container(
     wait: bool,
 ) -> Option<ExitStatus> {
     true_or!(cgroup_init(false), return None);
+
+    if !container.share_time {
+        true_or!(unsafe { unshare(CLONE_NEWTIME) } == 0, return None);
+    }
 
     let mut args = Vec::<OsString>::new();
     args.push("--unshare-user".into());

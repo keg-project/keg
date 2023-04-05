@@ -67,6 +67,8 @@ fn parse_args_or_run_inner() -> Option<Args> {
             mount_root = true;
         } else if &arg == "--share-net" {
             container.share_net = true;
+        } else if &arg == "--share-time" {
+            container.share_time = true;
         } else if &arg == "--net-nft-rules" {
             let path = some_or!(
                 args.next(),

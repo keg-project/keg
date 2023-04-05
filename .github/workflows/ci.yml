@@ -34,6 +34,12 @@ jobs:
         nft --version
         podman --version
         slirp4netns --version
+
+        # Workaround for https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2b5f9dad32ed19e8db3b0f10a84aa824a219803b
+        KEG_BASE_TEST_ARGS="--share-time" \
+        KEG_ROOTFS_TEST_ARGS="--share-time" \
+        KEG_TEST_ARGS="--share-time" \
+        KEG_HOME_TEST_ARGS="--share-time" \
         sh tests/tests.sh
 
     - name: Publish package

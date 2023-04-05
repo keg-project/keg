@@ -1,6 +1,9 @@
+use libc::c_int;
 use std::ffi::OsString;
 use std::io;
 use std::path::Path;
+
+pub const CLONE_NEWTIME: c_int = 0x80; // Not in `libc` crate yet
 
 pub fn ro_bind_subentries_keep_symlinks<S, D>(src: S, dest: D) -> io::Result<Vec<OsString>>
 where
