@@ -7,7 +7,7 @@ use crate::slirp::slirp;
 use crate::socket_pair::{set_cloexec, socket_pair};
 use crate::{msg_and, msg_ret, ok_or, some_or, true_or};
 use bincode;
-use libc::close;
+use libc::{c_int, close, unshare};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
@@ -17,6 +17,8 @@ use std::io::{self, Read, Write};
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::ExitStatus;
+
+const CLONE_NEWTIME: c_int = 0x80; // Not in `libc` crate yet
 
 fn run_slirp(_container: &Container, response: &ContainerRunnerResponse) -> bool {
     let (mut slirp_stream, slirp_sock) = some_or!(
@@ -171,6 +173,10 @@ pub fn run_container(
     } else {
         Cow::Borrowed(env)
     };
+
+    if stage == 4 {
+        true_or!(unsafe { unshare(CLONE_NEWTIME) } == 0, return None);
+    }
 
     if stage == 4 {
         // Load nft rules and **make sure** the load succeeds.
