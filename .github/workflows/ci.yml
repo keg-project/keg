@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -15,13 +14,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
     - name: Install dependencies
       run: |
         sudo apt-get -y update
         sudo apt-get -y install bubblewrap fuse-overlayfs libseccomp-dev nftables podman slirp4netns
+
     - name: Build
       run: |
         cargo build
+
     - name: Run tests
       run: |
         cargo test
@@ -32,3 +34,8 @@ jobs:
         podman --version
         slirp4netns --version
         sh tests/tests.sh
+
+    - name: Publish package
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: |
+        cargo publish
