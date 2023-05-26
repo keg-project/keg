@@ -5,4 +5,5 @@ mod utils;
 pub mod base;
 pub mod inner;
 pub mod rootfs;
+pub mod user;
 pub mod workspace;
