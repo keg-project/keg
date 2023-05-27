@@ -2,8 +2,13 @@
 name = "keg"
 version = "0.1.2"
 edition = "2021"
-description = "Keg"
+description = "A portable container without boilerplate."
+documentation = "https://github.com/keg-project/keg"
+homepage = "https://github.com/keg-project/keg"
+repository = "https://github.com/keg-project/keg"
 license = "MIT"
+keywords = ["container"]
+categories = ["virtualization", "command-line-utilities"]
 default-run = "keg"
 
 [dependencies]
