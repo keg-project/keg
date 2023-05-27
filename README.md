@@ -1,5 +1,8 @@
 # Keg
 
+[![Crates.io](https://img.shields.io/crates/v/keg)](https://crates.io/crates/keg)
+[![Build Status](https://github.com/keg-project/keg/actions/workflows/ci.yml/badge.svg)](https://github.com/keg-project/keg/actions)
+
 Keg is a portable container without boilerplate.
 
 * Keg is rootless and runs as a regular user.
