@@ -3,11 +3,51 @@ use crate::container::{start_container, Bind, Container, Mount, Options, SetEnv}
 use crate::die_with_parent::set_die_with_parent;
 use crate::run::inner;
 use crate::{msg_and, msg_ret, ok_or, some_or, some_or_ret, true_or};
+use indoc::indoc;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
-use std::process::ExitCode;
+use std::process::{self, ExitCode};
+
+static HELP_MESSAGE: &'static str = indoc! {r#"
+Usage: [OPTIONS] [--] [COMMAND]...
+
+Arguments:
+    [COMMAND]...        Command and arguments to run in the container. If
+                        empty, /bin/bash will be used.
+
+                        keg-base does not search $PATH; the command must
+                        either be an absolute path, or a path relative to
+                        container root.
+
+Options:
+    --help              Display this message and exit
+    --no-die-with-parent
+                        Do not kill child processes when this process dies
+    --no-new-scope      Do not run in a new systemd scope
+    --share-net         Enable network
+    --share-time        Share time namespace
+    --keep-env          Keep all environment variables
+    --net-nft-rules <PATH>
+                        Read and enforce nftables rules from <PATH>
+    --unshare-user <UID> <GID>
+                        Run within an additional layer of user namespace with
+                        uid <UID> and gid <GID>
+    --set-env <KEY> <VALUE>
+                        Set environment variable <KEY> to <VALUE>
+    --unset-env <KEY>   Unset environment variable <KEY>
+    --ro-bind <SRC> <DEST>
+                        Bind mount <SRC> to <DEST> as read-only
+    --rw-bind <SRC> <DEST>
+                        Bind mount <SRC> to <DEST> as read-write
+    --dev-bind <SRC> <DEST>
+                        Bind mount <SRC> to <DEST> as read-write and allow
+                        device access
+    --symlink <SRC> <DEST>
+                        Create a symlink to <SRC> at <DEST>
+    --dir <DEST>        Create a directory at <DEST>
+"#};
 
 struct Args {
     no_die_with_parent: bool,
@@ -41,7 +81,7 @@ where
     Some(Mount { path })
 }
 
-fn parse_args_or_run_inner() -> Option<Args> {
+fn handle_args_or_run_inner() -> Option<Args> {
     let mut args = env::args_os().peekable();
     some_or!(args.next(), msg_ret!("Argument required"));
 
@@ -54,7 +94,7 @@ fn parse_args_or_run_inner() -> Option<Args> {
     let mut no_die_with_parent = false;
     let mut no_new_scope = false;
     let mut container = Container::default();
-    let mut command: Option<Vec<OsString>> = None;
+    let mut command: Vec<OsString> = Vec::new();
 
     while let Some(arg) = args.next() {
         macro_rules! parse_bind {
@@ -71,7 +111,10 @@ fn parse_args_or_run_inner() -> Option<Args> {
                     .push(Options::$st(some_or_ret!(parse_mount($name, &mut args))));
             }};
         }
-        if &arg == "--no-die-with-parent" {
+        if &arg == "--help" {
+            println!("{HELP_MESSAGE}");
+            process::exit(0);
+        } else if &arg == "--no-die-with-parent" {
             no_die_with_parent = true;
         } else if &arg == "--no-new-scope" {
             no_new_scope = true;
@@ -123,23 +166,21 @@ fn parse_args_or_run_inner() -> Option<Args> {
         } else if &arg == "--dir" {
             parse_mount!("--dir", Dir);
         } else if &arg == "--" || !arg.as_bytes().starts_with(b"-") {
-            command = Some(Vec::new());
+            debug_assert!(command.is_empty());
             if !arg.as_bytes().starts_with(b"-") {
-                command.as_mut().unwrap().push(arg);
+                command.push(arg);
             }
             while let Some(arg) = args.next() {
-                command.as_mut().unwrap().push(arg);
+                command.push(arg);
             }
             break;
         } else {
-            msg_ret!("Unknown argument {}", arg.to_string_lossy());
+            msg_ret!("Unknown argument {}. Try --help.", arg.to_string_lossy());
         }
     }
-    let command = match command {
-        Some(x) => x,
-        None => vec![env::var_os("SHELL").unwrap_or("/bin/sh".into())],
-    };
-    true_or!(!command.is_empty(), msg_ret!("Must specify command"));
+    if command.is_empty() {
+        command = vec!["/bin/bash".into()];
+    }
     container.command = command;
 
     Some(Args {
@@ -151,7 +192,7 @@ fn parse_args_or_run_inner() -> Option<Args> {
 
 pub fn run() -> ExitCode {
     let env = env::vars_os().collect::<Vec<_>>();
-    let args = some_or!(parse_args_or_run_inner(), return ExitCode::FAILURE);
+    let args = some_or!(handle_args_or_run_inner(), return ExitCode::FAILURE);
     if !args.no_die_with_parent {
         true_or!(
             set_die_with_parent(),

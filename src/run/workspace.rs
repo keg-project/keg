@@ -5,12 +5,68 @@ use crate::filesystem;
 use crate::overlayfs;
 use crate::run::inner;
 use crate::{msg_and, msg_ret, ok_or, some_or, true_or};
+use indoc::indoc;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-use std::process::ExitCode;
+use std::process::{self, ExitCode};
+
+macro_rules! help_message_part0 {
+    () => {
+        indoc! {r#"
+Usage: [OPTIONS] [--] [COMMAND]...
+
+Arguments:
+    [COMMAND]...        Command and arguments to run in the container. If
+                        empty, /bin/bash will be used.
+
+Options:
+    --help              Display this message and exit
+    --no-die-with-parent
+                        Do not kill child processes when this process dies
+    --no-new-scope      Do not run in a new systemd scope
+    -r <DIR>            Use <DIR> as the root directory. By default, /bin,
+                        /etc, /lib, /opt, /sbin, /usr, /var, and /lib64 (if
+                        /lib64 is available) will be made available in the
+                        container root directory.
+    -l <DIR>            Add <DIR> as a layer of lower directory. The layer is
+                        applied after the root directory and previous lower
+                        directories. This option can appear multiple times.
+    -w <DIR>            Use <DIR> as the workspace directory. This directory
+"#}
+    };
+}
+
+macro_rules! help_message_part1 {
+    () => {
+        indoc! {r#"
+.
+    -m                  Mount host root to /mnt before running podman. /mnt
+                        will be available to podman (but not to the
+                        container).
+    --share-net         Enable network
+    --share-time        Share time namespace
+    --net-nft-rules <PATH>
+                        Read and enforce nftables rules from <PATH>
+    -a <ARG>            Append <ARG> as an argument to the podman. This can be
+                        used to make additional changes to the container.
+"#}
+    };
+}
+
+static HELP_MESSAGE_IF_WORKSPACE_IS_NOT_HOME: &'static str = concat! {
+    help_message_part0!(),
+r#"                        will be mounted at /root/workspace. The default is
+                        ".""#,
+    help_message_part1!(),
+};
+static HELP_MESSAGE_IF_WORKSPACE_IS_HOME: &'static str = concat! {
+    help_message_part0!(),
+r#"                        will be mounted at /root. The default is ".""#,
+    help_message_part1!(),
+};
 
 struct Args {
     no_die_with_parent: bool,
@@ -24,7 +80,7 @@ struct Args {
     command: Vec<OsString>,
 }
 
-fn parse_args_or_run_inner() -> Option<Args> {
+fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
     let mut args = env::args_os().peekable();
     some_or!(args.next(), msg_ret!("Argument required"));
 
@@ -45,7 +101,14 @@ fn parse_args_or_run_inner() -> Option<Args> {
     let mut command = Vec::new();
 
     while let Some(arg) = args.next() {
-        if &arg == "--no-die-with-parent" {
+        if &arg == "--help" {
+            if !workspace_is_home {
+                println!("{HELP_MESSAGE_IF_WORKSPACE_IS_NOT_HOME}");
+            } else {
+                println!("{HELP_MESSAGE_IF_WORKSPACE_IS_HOME}");
+            }
+            process::exit(0);
+        } else if &arg == "--no-die-with-parent" {
             no_die_with_parent = true;
         } else if &arg == "--no-new-scope" {
             no_new_scope = true;
@@ -72,6 +135,7 @@ fn parse_args_or_run_inner() -> Option<Args> {
         } else if &arg == "-a" {
             container_args.push(some_or!(args.next(), msg_ret!("-a requires an argument")));
         } else if &arg == "--" || !arg.as_bytes().starts_with(b"-") {
+            debug_assert!(command.is_empty());
             if !arg.as_bytes().starts_with(b"-") {
                 command.push(arg);
             }
@@ -80,7 +144,7 @@ fn parse_args_or_run_inner() -> Option<Args> {
             }
             break;
         } else {
-            msg_ret!("Unknown argument {}", arg.to_string_lossy());
+            msg_ret!("Unknown argument {}. Try --help.", arg.to_string_lossy());
         }
     }
 
@@ -99,7 +163,10 @@ fn parse_args_or_run_inner() -> Option<Args> {
 
 pub fn run(workspace_is_home: bool) -> ExitCode {
     let env = env::vars_os().collect::<Vec<_>>();
-    let mut args = some_or!(parse_args_or_run_inner(), return ExitCode::FAILURE);
+    let mut args = some_or!(
+        handle_args_or_run_inner(workspace_is_home),
+        return ExitCode::FAILURE
+    );
     if !args.no_die_with_parent {
         true_or!(
             set_die_with_parent(),

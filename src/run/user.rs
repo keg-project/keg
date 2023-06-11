@@ -3,13 +3,32 @@
 
 use crate::die_with_parent::set_die_with_parent;
 use crate::{msg_and, msg_ret, msg_retf, ok_or, some_or, true_or};
+use indoc::indoc;
 use libc::{getgid, getuid, gid_t, uid_t, unshare, CLONE_NEWUSER};
 use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-use std::process::{Command, ExitCode, ExitStatus};
+use std::process::{self, Command, ExitCode, ExitStatus};
+
+static HELP_MESSAGE: &'static str = indoc! {r#"
+Usage: [OPTIONS] [--] [COMMAND]...
+
+Arguments:
+    [COMMAND]...        Command and arguments to run in the new namespace. If
+                        empty, $SHELL will be used, unless $SHELL is unset in
+                        which case /bin/bash will be used.
+
+Options:
+    --help              Display this message and exit
+    --no-die-with-parent
+                        Do not kill child processes when this process dies
+    --uid <UID>         Set uid to <UID> in the new user namespace. The
+                        default is 1000.
+    --gid <GID>         Set gid to <GID> in the new user namespace. The
+                        default is 1000.
+"#};
 
 struct Args {
     no_die_with_parent: bool,
@@ -18,17 +37,20 @@ struct Args {
     command: Vec<OsString>,
 }
 
-fn parse_args() -> Option<Args> {
+fn handle_args() -> Option<Args> {
     let mut args = env::args_os().peekable();
     some_or!(args.next(), msg_ret!("Argument required"));
 
     let mut no_die_with_parent = false;
     let mut uid = 1000;
     let mut gid = 1000;
-    let mut command: Option<Vec<OsString>> = None;
+    let mut command: Vec<OsString> = Vec::new();
 
     while let Some(arg) = args.next() {
-        if &arg == "--no-die-with-parent" {
+        if &arg == "--help" {
+            println!("{HELP_MESSAGE}");
+            process::exit(0);
+        } else if &arg == "--no-die-with-parent" {
             no_die_with_parent = true;
         } else if &arg == "--uid" {
             let uid_arg = some_or!(args.next(), msg_ret!("--unshare-user requires 2 arguments"));
@@ -43,23 +65,21 @@ fn parse_args() -> Option<Args> {
                 msg_ret!("Invalid gid")
             );
         } else if &arg == "--" || !arg.as_bytes().starts_with(b"-") {
-            command = Some(Vec::new());
+            debug_assert!(command.is_empty());
             if !arg.as_bytes().starts_with(b"-") {
-                command.as_mut().unwrap().push(arg);
+                command.push(arg);
             }
             while let Some(arg) = args.next() {
-                command.as_mut().unwrap().push(arg);
+                command.push(arg);
             }
             break;
         } else {
-            msg_ret!("Unknown argument {}", arg.to_string_lossy());
+            msg_ret!("Unknown argument {}. Try --help.", arg.to_string_lossy());
         }
     }
-    let command = match command {
-        Some(x) => x,
-        None => vec![env::var_os("SHELL").unwrap_or("/bin/sh".into())],
-    };
-    true_or!(!command.is_empty(), msg_ret!("Must specify command"));
+    if command.is_empty() {
+        command = vec![env::var_os("SHELL").unwrap_or("/bin/bash".into())];
+    }
 
     Some(Args {
         no_die_with_parent,
@@ -108,7 +128,7 @@ fn run_command(command: &[OsString]) -> Option<ExitStatus> {
 }
 
 pub fn run() -> ExitCode {
-    let args = some_or!(parse_args(), return ExitCode::FAILURE);
+    let args = some_or!(handle_args(), return ExitCode::FAILURE);
     if !args.no_die_with_parent {
         true_or!(
             set_die_with_parent(),
