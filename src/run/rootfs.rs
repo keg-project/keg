@@ -199,6 +199,14 @@ pub fn run() -> ExitCode {
             dest: "/mnt".into(),
         }));
     }
+    args.container.options.push(Options::DevBind(Bind {
+        src: "/dev/null".into(),
+        dest: "/etc/subuid".into(),
+    }));
+    args.container.options.push(Options::DevBind(Bind {
+        src: "/dev/null".into(),
+        dest: "/etc/subgid".into(),
+    }));
 
     if let Some(root_dir) = args.root_dir {
         args.container.options.push(Options::RoBind(Bind {
