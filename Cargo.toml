@@ -22,4 +22,5 @@ serde = { version = "1.0.0", features = ["derive"] }
 panic = "abort"
 
 [profile.release]
+lto = true
 panic = "abort"
