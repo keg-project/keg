@@ -25,7 +25,7 @@ checksum = "9f2cb48b81b1dc9f39676bf99f5499babfec7cd8fe14307f7b3d747208fb5690"
 
 [[package]]
 name = "keg"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bincode",
  "indoc",
