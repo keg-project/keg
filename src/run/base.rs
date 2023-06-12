@@ -30,7 +30,9 @@ Options:
     --share-time        Share time namespace
     --keep-env          Keep all environment variables
     --net-nft-rules <PATH>
-                        Read and enforce nftables rules from <PATH>
+                        Read and enforce nftables rules from <PATH>. This file
+                        will be loaded into memory and keg does not limit its
+                        size.
     --unshare-user <UID> <GID>
                         Run within an additional layer of user namespace with
                         uid <UID> and gid <GID>
@@ -53,6 +55,7 @@ struct Args {
     no_die_with_parent: bool,
     no_new_scope: bool,
     container: Container,
+    net_nft_rules_path: Option<OsString>,
 }
 
 fn parse_bind<A>(option_name: &str, args: &mut A) -> Option<Bind>
@@ -94,6 +97,7 @@ fn handle_args_or_run_inner() -> Option<Args> {
     let mut no_die_with_parent = false;
     let mut no_new_scope = false;
     let mut container = Container::default();
+    let mut net_nft_rules_path = None;
     let mut command: Vec<OsString> = Vec::new();
 
     while let Some(arg) = args.next() {
@@ -125,13 +129,10 @@ fn handle_args_or_run_inner() -> Option<Args> {
         } else if &arg == "--keep-env" {
             container.keep_env = true;
         } else if &arg == "--net-nft-rules" {
-            let path = some_or!(
+            net_nft_rules_path = Some(some_or!(
                 args.next(),
                 msg_ret!("--net-nft-rules requires an argument")
-            );
-            // TODO: Limit rule length
-            let rules = ok_or!(fs::read(path), msg_ret!("Failed to read nft rules"));
-            container.net_nft_rules = rules;
+            ));
         } else if &arg == "--unshare-user" {
             let uid = some_or!(args.next(), msg_ret!("--unshare-user requires 2 arguments"));
             let uid = some_or!(
@@ -187,12 +188,13 @@ fn handle_args_or_run_inner() -> Option<Args> {
         no_die_with_parent,
         no_new_scope,
         container,
+        net_nft_rules_path,
     })
 }
 
 pub fn run() -> ExitCode {
     let env = env::vars_os().collect::<Vec<_>>();
-    let args = some_or!(handle_args_or_run_inner(), return ExitCode::FAILURE);
+    let mut args = some_or!(handle_args_or_run_inner(), return ExitCode::FAILURE);
     if !args.no_die_with_parent {
         true_or!(
             set_die_with_parent(),
@@ -201,6 +203,14 @@ pub fn run() -> ExitCode {
     }
     if !args.no_new_scope {
         return run_in_scope();
+    }
+
+    if let Some(path) = args.net_nft_rules_path {
+        let rules = ok_or!(
+            fs::read(path),
+            msg_and!("Failed to read nft rules"; return ExitCode::FAILURE)
+        );
+        args.container.net_nft_rules = rules;
     }
 
     let exit_status = some_or!(

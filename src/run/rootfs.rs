@@ -48,7 +48,9 @@ Options:
     --share-net         Enable network
     --share-time        Share time namespace
     --net-nft-rules <PATH>
-                        Read and enforce nftables rules from <PATH>
+                        Read and enforce nftables rules from <PATH>. This file
+                        will be loaded into memory and keg does not limit its
+                        size.
     -a <ARG>            Append <ARG> as an argument to the podman. This can be
                         used to make additional changes to the container.
 "#};
@@ -63,6 +65,7 @@ struct Args {
     work: OsString,
     mount_root: bool,
     container: Container,
+    net_nft_rules_path: Option<OsString>,
     container_args: Vec<OsString>,
     command: Vec<OsString>,
 }
@@ -86,6 +89,7 @@ fn handle_args_or_run_inner() -> Option<Args> {
     let mut work = "work".into();
     let mut mount_root = false;
     let mut container = Container::default();
+    let mut net_nft_rules_path = None;
     let mut container_args: Vec<OsString> = Vec::new();
     let mut command = Vec::new();
 
@@ -114,13 +118,10 @@ fn handle_args_or_run_inner() -> Option<Args> {
         } else if &arg == "--share-time" {
             container.share_time = true;
         } else if &arg == "--net-nft-rules" {
-            let path = some_or!(
+            net_nft_rules_path = Some(some_or!(
                 args.next(),
                 msg_ret!("--net-nft-rules requires an argument")
-            );
-            // TODO: Limit rule length
-            let rules = ok_or!(fs::read(path), msg_ret!("Failed to read nft rules"));
-            container.net_nft_rules = rules;
+            ));
         } else if &arg == "-a" {
             container_args.push(some_or!(args.next(), msg_ret!("-a requires an argument")));
         } else if &arg == "--" || !arg.as_bytes().starts_with(b"-") {
@@ -147,6 +148,7 @@ fn handle_args_or_run_inner() -> Option<Args> {
         work,
         mount_root,
         container,
+        net_nft_rules_path,
         container_args,
         command,
     })
@@ -173,6 +175,14 @@ pub fn run() -> ExitCode {
         Path::new(&args.work).is_relative(),
         msg_and!("--work must specify a relative path"; return ExitCode::FAILURE)
     );
+
+    if let Some(path) = args.net_nft_rules_path {
+        let rules = ok_or!(
+            fs::read(path),
+            msg_and!("Failed to read nft rules"; return ExitCode::FAILURE)
+        );
+        args.container.net_nft_rules = rules;
+    }
 
     args.container.unshare_user = Some((1000, 1000));
     args.container.options.push(Options::SetEnv(SetEnv {
