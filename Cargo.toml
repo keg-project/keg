@@ -1,6 +1,6 @@
 [package]
 name = "keg"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 description = "A portable container without boilerplate."
 documentation = "https://github.com/keg-project/keg"
