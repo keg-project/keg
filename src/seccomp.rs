@@ -14,13 +14,6 @@ pub fn apply() -> bool {
     ok_or!(
         filter.add_rule(
             ScmpAction::Errno(libc::EPERM),
-            ok_or!(i32::try_from(libc::SYS_modify_ldt), return false)
-        ),
-        return false
-    );
-    ok_or!(
-        filter.add_rule(
-            ScmpAction::Errno(libc::EPERM),
             ok_or!(i32::try_from(libc::SYS_add_key), return false)
         ),
         return false
