@@ -193,6 +193,10 @@ pub fn run() -> ExitCode {
         key: "HOME".into(),
         value: "/home/user".into(),
     }));
+    args.container.options.push(Options::SetEnv(SetEnv {
+        key: "TMPDIR".into(),
+        value: "/tmp".into(),
+    }));
     if args.mount_root {
         args.container.options.push(Options::DevBind(Bind {
             src: "/".into(),
