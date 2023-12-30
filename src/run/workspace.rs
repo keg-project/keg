@@ -4,12 +4,12 @@ use crate::die_with_parent::set_die_with_parent;
 use crate::filesystem;
 use crate::overlayfs;
 use crate::run::inner;
-use crate::{msg_and, msg_ret, ok_or, some_or, true_or};
+use crate::{msg_and, msg_ret, ok_or, some_or, some_or_ret, true_or};
 use indoc::indoc;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::Path;
 use std::process::{self, ExitCode};
 
@@ -49,9 +49,15 @@ macro_rules! help_message_part1 {
     () => {
         indoc! {r#"
 .
-    -m                  Mount host root to /mnt before running podman. /mnt
-                        will be available to podman (but not to the
-                        container).
+    --ro-bind <SRC> <DEST>
+                        Bind mount <SRC> to /mnt/<DEST> as read-only before
+                        running podman
+    --rw-bind <SRC> <DEST>
+                        Bind mount <SRC> to /mnt/<DEST> as read-write before
+                        running podman
+    --dev-bind <SRC> <DEST>
+                        Bind mount <SRC> to /mnt/<DEST> as read-write and
+                        allow device access, before running podman
     -a <ARG>            Append <ARG> as an argument to the podman. This can be
                         used to make additional changes to the container.
 "#}
@@ -76,11 +82,46 @@ struct Args {
     root_dir: Option<OsString>,
     lower_dirs: Vec<OsString>,
     workspace_dir: OsString,
-    mount_root: bool,
     container: Container,
     net_nft_rules_path: Option<OsString>,
     container_args: Vec<OsString>,
     command: Vec<OsString>,
+}
+
+fn parse_bind<A>(option_name: &str, args: &mut A) -> Option<Bind>
+where
+    A: Iterator<Item = OsString>,
+{
+    let src = some_or!(
+        args.next(),
+        msg_ret!("{} requires 2 arguments", option_name)
+    );
+    let mut dest = some_or!(
+        args.next(),
+        msg_ret!("{} requires 2 arguments", option_name)
+    );
+    true_or!(
+        !dest.as_bytes().contains(&b'/'),
+        msg_ret!("Bind destination cannot contain \"/\"")
+    );
+    true_or!(
+        !dest.as_bytes().contains(&b'\0'),
+        msg_ret!("Bind destination cannot contain the nul byte")
+    );
+    true_or!(
+        dest.as_bytes() != &b"."[..],
+        msg_ret!("Bind destination cannot be \".\"")
+    );
+    true_or!(
+        dest.as_bytes() != &b".."[..],
+        msg_ret!("Bind destination cannot be \"..\"")
+    );
+    true_or!(
+        !dest.is_empty(),
+        msg_ret!("Bind destination cannot be empty")
+    );
+    dest = OsString::from_vec([&b"/mnt/"[..], dest.as_bytes()].concat());
+    Some(Bind { src, dest })
 }
 
 fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
@@ -98,13 +139,19 @@ fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
     let mut root_dir = None;
     let mut lower_dirs = Vec::new();
     let mut workspace_dir = ".".into();
-    let mut mount_root = false;
     let mut container = Container::default();
     let mut net_nft_rules_path = None;
     let mut container_args: Vec<OsString> = Vec::new();
     let mut command = Vec::new();
 
     while let Some(arg) = args.next() {
+        macro_rules! parse_bind {
+            ($name: expr, $st: ident) => {{
+                container
+                    .options
+                    .push(Options::$st(some_or_ret!(parse_bind($name, &mut args))));
+            }};
+        }
         if &arg == "--help" {
             if !workspace_is_home {
                 println!("{HELP_MESSAGE_IF_WORKSPACE_IS_NOT_HOME}");
@@ -122,8 +169,12 @@ fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
             lower_dirs.push(some_or!(args.next(), msg_ret!("-l requires an argument")));
         } else if &arg == "-w" {
             workspace_dir = some_or!(args.next(), msg_ret!("-w requires an argument"));
-        } else if &arg == "-m" {
-            mount_root = true;
+        } else if &arg == "--ro-bind" {
+            parse_bind!("--ro-bind", RoBind);
+        } else if &arg == "--rw-bind" {
+            parse_bind!("--rw-bind", Bind);
+        } else if &arg == "--dev-bind" {
+            parse_bind!("--dev-bind", DevBind);
         } else if &arg == "--share-net" {
             container.share_net = true;
         } else if &arg == "--share-time" {
@@ -155,7 +206,6 @@ fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
         root_dir,
         lower_dirs,
         workspace_dir,
-        mount_root,
         container,
         net_nft_rules_path,
         container_args,
@@ -200,12 +250,6 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
         key: "TMPDIR".into(),
         value: "/tmp".into(),
     }));
-    if args.mount_root {
-        args.container.options.push(Options::DevBind(Bind {
-            src: "/".into(),
-            dest: "/mnt".into(),
-        }));
-    }
     args.container.options.push(Options::DevBind(Bind {
         src: "/dev/null".into(),
         dest: "/etc/subuid".into(),
