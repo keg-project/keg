@@ -265,7 +265,7 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
             dest: Path::new("/container_overlay_lower_0").into(),
         }));
     } else {
-        let r = filesystem::iterate(|file_name, symlink| match symlink {
+        let r = filesystem::iterate(true, |file_name, symlink| match symlink {
             None => args.container.options.push(Options::RoBind(Bind {
                 src: Path::new("/").join(file_name).into(),
                 dest: Path::new("/container_overlay_lower_0")

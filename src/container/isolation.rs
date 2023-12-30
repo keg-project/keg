@@ -140,7 +140,7 @@ where
     let dest: &Path = dest.as_ref();
 
     let mut result = Vec::new();
-    filesystem::iterate(|file_name, symlink| match symlink {
+    filesystem::iterate(false, |file_name, symlink| match symlink {
         None => {
             result.push("--ro-bind".into());
             result.push(Path::new("/").join(file_name).into());
