@@ -28,17 +28,10 @@ Options:
     --no-new-scope      Do not run in a new systemd scope
     --share-net         Enable network
     --share-time        Share time namespace
-    --keep-env          Keep all environment variables
     --net-nft-rules <PATH>
                         Read and enforce nftables rules from <PATH>. This file
                         will be loaded into memory and keg does not limit its
                         size.
-    --unshare-user <UID> <GID>
-                        Run within an additional layer of user namespace with
-                        uid <UID> and gid <GID>
-    --set-env <KEY> <VALUE>
-                        Set environment variable <KEY> to <VALUE>
-    --unset-env <KEY>   Unset environment variable <KEY>
     --ro-bind <SRC> <DEST>
                         Bind mount <SRC> to <DEST> as read-only
     --rw-bind <SRC> <DEST>
@@ -49,6 +42,13 @@ Options:
     --symlink <SRC> <DEST>
                         Create a symlink to <SRC> at <DEST>
     --dir <DEST>        Create a directory at <DEST>
+    --keep-env          Keep all environment variables
+    --set-env <KEY> <VALUE>
+                        Set environment variable <KEY> to <VALUE>
+    --unset-env <KEY>   Unset environment variable <KEY>
+    --unshare-user <UID> <GID>
+                        Run within an additional layer of user namespace with
+                        uid <UID> and gid <GID>
 "#};
 
 struct Args {

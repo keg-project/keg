@@ -25,6 +25,12 @@ Options:
     --no-die-with-parent
                         Do not kill child processes when this process dies
     --no-new-scope      Do not run in a new systemd scope
+    --share-net         Enable network
+    --share-time        Share time namespace
+    --net-nft-rules <PATH>
+                        Read and enforce nftables rules from <PATH>. This file
+                        will be loaded into memory and keg does not limit its
+                        size.
     -r <DIR>            Use <DIR> as the root directory. By default, /bin,
                         /etc, /lib, /opt, /sbin, /usr, /var, and /lib64 (if
                         /lib64 is available) will be made available in the
@@ -45,12 +51,6 @@ Options:
     -m                  Mount host root to /mnt before running podman. /mnt
                         will be available to podman (but not to the
                         container).
-    --share-net         Enable network
-    --share-time        Share time namespace
-    --net-nft-rules <PATH>
-                        Read and enforce nftables rules from <PATH>. This file
-                        will be loaded into memory and keg does not limit its
-                        size.
     -a <ARG>            Append <ARG> as an argument to the podman. This can be
                         used to make additional changes to the container.
 "#};
