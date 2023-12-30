@@ -77,6 +77,7 @@ fn process_env(container: &Container, env: &[(OsString, OsString)]) -> Vec<(OsSt
 
 fn cleanup_container(container: &mut Container) {
     container.keep_env = false;
+    container.base_image = None;
     container.options.retain_mut(|option| match option {
         Options::SetEnv(_) | Options::UnsetEnv(_) => false,
         Options::Bind(Bind { src, dest: _ }) => {
@@ -152,9 +153,6 @@ where
             result.push(dest.join(file_name).into());
         }
     })?;
-    result.push("--ro-bind".into());
-    result.push(env::current_exe()?.into());
-    result.push(dest.join("keg-bin").into());
     Ok(result)
 }
 
@@ -218,14 +216,32 @@ pub fn run_container(
     }
 
     if stage == 0 {
-        args.append(&mut ok_or!(
-            ro_bind_filesystem("/"),
-            msg_ret!("Failed binding staging image")
-        ));
-        args.append(&mut ok_or!(
-            ro_bind_filesystem("/container_staging_image"),
-            msg_ret!("Failed binding staging image")
-        ));
+        if let Some(base_image) = &container.base_image {
+            args.append(&mut ok_or!(
+                ro_bind_subentries_keep_symlinks(base_image, "/"),
+                msg_ret!("Failed binding staging image")
+            ));
+            args.append(&mut ok_or!(
+                ro_bind_subentries_keep_symlinks(base_image, "/container_staging_image"),
+                msg_ret!("Failed binding staging image")
+            ));
+        } else {
+            args.append(&mut ok_or!(
+                ro_bind_filesystem("/"),
+                msg_ret!("Failed binding staging image")
+            ));
+            args.append(&mut ok_or!(
+                ro_bind_filesystem("/container_staging_image"),
+                msg_ret!("Failed binding staging image")
+            ));
+        }
+        let current_exe = ok_or!(env::current_exe(), msg_ret!("Failed getting current exe"));
+        args.push("--ro-bind".into());
+        args.push(current_exe.clone().into());
+        args.push("/keg-bin".into());
+        args.push("--ro-bind".into());
+        args.push(current_exe.into());
+        args.push("/container_staging_image/keg-bin".into());
     } else {
         args.append(&mut ok_or!(
             ro_bind_subentries_keep_symlinks("/container_staging_image", "/"),
@@ -303,7 +319,7 @@ pub fn run_container(
 
     let mut container_clone = container.clone();
     if stage == 0 {
-        // Env options have already been processed and written to `env`.
+        // Remove information we already applied.
         cleanup_container(&mut container_clone);
     }
     if stage == 4 {

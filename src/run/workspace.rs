@@ -27,6 +27,8 @@ Options:
     --no-die-with-parent
                         Do not kill child processes when this process dies
     --no-new-scope      Do not run in a new systemd scope
+    -b <PATH>           Use <PATH> as the trusted base image, instead of the
+                        default system directories
     --share-net         Enable network
     --share-time        Share time namespace
     --net-nft-rules <PATH>
@@ -163,6 +165,8 @@ fn handle_args_or_run_inner(workspace_is_home: bool) -> Option<Args> {
             no_die_with_parent = true;
         } else if &arg == "--no-new-scope" {
             no_new_scope = true;
+        } else if &arg == "-b" {
+            container.base_image = Some(some_or!(args.next(), msg_ret!("-b requires an argument")));
         } else if &arg == "-r" {
             root_dir = Some(some_or!(args.next(), msg_ret!("-r requires an argument")));
         } else if &arg == "-l" {
