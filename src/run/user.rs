@@ -53,13 +53,13 @@ fn handle_args() -> Option<Args> {
         } else if &arg == "--no-die-with-parent" {
             no_die_with_parent = true;
         } else if &arg == "--uid" {
-            let uid_arg = some_or!(args.next(), msg_ret!("--unshare-user requires 2 arguments"));
+            let uid_arg = some_or!(args.next(), msg_ret!("--uid requires an argument"));
             uid = some_or!(
                 (uid_arg.into_string().ok()).and_then(|x| x.parse().ok()),
                 msg_ret!("Invalid uid")
             );
         } else if &arg == "--gid" {
-            let gid_arg = some_or!(args.next(), msg_ret!("--unshare-user requires 2 arguments"));
+            let gid_arg = some_or!(args.next(), msg_ret!("--gid requires an argument"));
             gid = some_or!(
                 (gid_arg.into_string().ok()).and_then(|x| x.parse().ok()),
                 msg_ret!("Invalid gid")
