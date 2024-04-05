@@ -319,6 +319,7 @@ pub fn run() -> ExitCode {
     args.container.command.push("--cap-add".into());
     args.container.command.push("sys_chroot".into());
     args.container.command.push("-i".into());
+    args.container.command.push("--network=slirp4netns".into());
     args.container.command.push("-t".into());
     args.container
         .command
