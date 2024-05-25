@@ -4,6 +4,7 @@ mod container;
 mod die_with_parent;
 mod filesystem;
 mod keyring;
+mod masked_paths;
 mod overlayfs;
 mod seccomp;
 mod slirp;

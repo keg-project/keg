@@ -2,6 +2,7 @@ use super::utils::run_in_scope;
 use crate::container::{start_container, Bind, Container, Mount, Options, SetEnv};
 use crate::die_with_parent::set_die_with_parent;
 use crate::filesystem;
+use crate::masked_paths;
 use crate::overlayfs;
 use crate::run::inner;
 use crate::{msg_and, msg_ret, ok_or, some_or, some_or_ret, true_or};
@@ -311,6 +312,8 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
         dest: Path::new("/container_root_workspace").into(),
     }));
 
+    args.container.create_dummy_files = true;
+
     let overlay_command = some_or!(
         overlayfs::get_command(
             container_lowers.iter().map(|x| &x[..]),
@@ -328,11 +331,23 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
     args.container.command.push("--cap-add".into());
     args.container.command.push("sys_chroot".into());
     args.container.command.push("-i".into());
+    args.container
+        .command
+        .push(masked_paths::podman_arg().into());
     args.container.command.push("--network=slirp4netns".into());
     args.container.command.push("-t".into());
     args.container
         .command
         .push("--mount=type=tmpfs,dst=/tmp".into());
+    args.container
+        .command
+        .push("--mount=type=bind,src=/container_dummy_loadavg,dst=/proc/loadavg,ro=true".into());
+    args.container
+        .command
+        .push("--mount=type=bind,src=/container_dummy_stat,dst=/proc/stat,ro=true".into());
+    args.container
+        .command
+        .push("--mount=type=bind,src=/container_dummy_uptime,dst=/proc/uptime,ro=true".into());
     if !workspace_is_home {
         args.container
             .command

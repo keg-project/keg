@@ -56,5 +56,12 @@ pub fn apply() -> bool {
         ),
         return false
     );
+    ok_or!(
+        filter.add_rule(
+            ScmpAction::Errno(libc::EPERM),
+            ok_or!(i32::try_from(libc::SYS_sysinfo), return false)
+        ),
+        return false
+    );
     filter.load().is_ok()
 }

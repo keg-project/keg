@@ -130,6 +130,7 @@ pub fn run_container(
 
     let mut container_clone = Container::default();
     container_clone.unshare_user = container.unshare_user;
+    container_clone.create_dummy_files = container.create_dummy_files;
     container_clone.command_before_unshare_user = container.command_before_unshare_user.clone();
     container_clone.command = container.command.clone();
 

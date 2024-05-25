@@ -8,6 +8,7 @@ use std::ffi::{CString, OsString};
 use std::fs;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, ExitStatus};
 
@@ -17,6 +18,48 @@ pub fn run_container(
     wait: bool,
 ) -> Option<ExitStatus> {
     assert!(wait);
+
+    if container.create_dummy_files {
+        ok_or!(
+            fs::write("/container_dummy_loadavg", b"1.00 1.00 1.00 1/100 1\n"),
+            msg_ret!("Failed to write dummy loadavg")
+        );
+        ok_or!(
+            fs::write(
+                "/container_dummy_stat",
+                b"cpu  0 0 0 0 0 0 0 0 0 0
+cpu0 0 0 0 0 0 0 0 0 0 0
+intr 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ctxt 0
+btime 100
+processes 100
+procs_running 1
+procs_blocked 0
+softirq 0 0 0 0 0 0 0 0 0 0 0
+"
+            ),
+            msg_ret!("Failed to write dummy stat")
+        );
+        ok_or!(
+            fs::write("/container_dummy_uptime", b"100.00 100.00\n"),
+            msg_ret!("Failed to write dummy uptime")
+        );
+        ok_or!(
+            fs::set_permissions(
+                "/container_dummy_loadavg",
+                fs::Permissions::from_mode(0o444)
+            ),
+            msg_ret!("Failed to chmod dummy loadavg")
+        );
+        ok_or!(
+            fs::set_permissions("/container_dummy_stat", fs::Permissions::from_mode(0o444)),
+            msg_ret!("Failed to chmod dummy stat")
+        );
+        ok_or!(
+            fs::set_permissions("/container_dummy_uptime", fs::Permissions::from_mode(0o444)),
+            msg_ret!("Failed to chmod dummy uptime")
+        );
+    }
 
     true_or!(
         mount_cgroup("/sys/fs/cgroup"),

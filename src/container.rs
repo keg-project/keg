@@ -50,6 +50,7 @@ pub struct Container {
     pub net_nft_rules: Vec<u8>,
     pub unshare_user: Option<(uid_t, gid_t)>,
     pub options: Vec<Options>,
+    pub create_dummy_files: bool,
     pub command_before_unshare_user: Vec<OsString>,
     pub command: Vec<OsString>,
 }
@@ -64,6 +65,7 @@ impl Default for Container {
             net_nft_rules: Vec::new(),
             unshare_user: None,
             options: Vec::new(),
+            create_dummy_files: false,
             command_before_unshare_user: Vec::new(),
             command: Vec::new(),
         }
