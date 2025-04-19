@@ -121,7 +121,7 @@ fn run_command(command: &[OsString]) -> Option<ExitStatus> {
         Ok(child) => child,
     };
     let status = match child.wait() {
-        Err(e) => msg_ret!("Failed to wait for command before unshare: {e}"),
+        Err(e) => msg_ret!("Failed to wait for command: {e}"),
         Ok(status) => status,
     };
     Some(status)
