@@ -255,6 +255,10 @@ pub fn run(workspace_is_home: bool) -> ExitCode {
         key: "TMPDIR".into(),
         value: "/tmp".into(),
     }));
+    args.container.options.push(Options::SetEnv(SetEnv {
+        key: "CONTAINERS_CONF".into(),
+        value: "/dev/null".into(),
+    }));
     args.container.options.push(Options::DevBind(Bind {
         src: "/dev/null".into(),
         dest: "/etc/subuid".into(),
