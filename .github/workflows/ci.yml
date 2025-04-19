@@ -35,6 +35,32 @@ jobs:
         podman --version
         slirp4netns --version
 
+        # Workaround for AppArmor causing "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted"
+        # See:
+        # https://github.com/actions/runner-images/issues/10015
+        # https://gitlab.com/apparmor/apparmor/-/wikis/unprivileged_userns_restriction
+        # https://etbe.coker.com.au/2024/04/24/ubuntu-24-04-bubblewrap/
+        sudo bash -c 'cat > /etc/apparmor.d/allow <<EOF
+        abi <abi/4.0>,
+        include <tunables/global>
+
+        profile allow /** flags=(unconfined) {
+          capability,
+          network,
+          mount,
+          remount,
+          umount,
+          pivot_root,
+          ptrace,
+          signal,
+          dbus,
+          unix,
+          file,
+          userns,
+        }
+        EOF'
+        sudo systemctl reload apparmor
+
         # Workaround for https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2b5f9dad32ed19e8db3b0f10a84aa824a219803b
         KEG_BASE_TEST_ARGS="--share-time" \
         KEG_ROOTFS_TEST_ARGS="--share-time" \
